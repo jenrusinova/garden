@@ -1,0 +1,60 @@
+doctype html
+
+- var title="Test page"
+
+mixin wide-card-body
+  .col-12
+    .card.card-body.mt-3
+      block
+
+mixin zone-card(name, id_base)
+  .col-sm-12.col-md-6.col-xl-4
+    .card.mt-3(id=id_base)
+      .card-header.pr-3
+        .card-title.m-0
+          .float-right.mr-0
+            .custom-control.custom-switch
+              input(type="checkbox" id=id_base + "-state" checked="checked").custom-control-input
+              label.custom-control-label(for=id_base + "-state")
+          h4.m-0 #{name}
+      .card-body
+        .row.mt-3
+          .col-6
+            p.big-value(id=id_base + "-runtime") &nbsp;
+            p.tip over last 24h
+          .col-6
+            p.big-value(id=id_base + "-next_run") &nbsp;
+            p.tip next run
+        p.text-center  Starts 17:00 for 7m
+      .card-footer.bg-primary
+        .text-center(id=id_base + "-actions")
+
+html(lang='en')
+  head
+    title #{title }
+    link(rel="stylesheet" href="kitten-base.css")
+    meta(name="viewport" content="width=device-width, initial-scale=1")
+  body
+    script(src="jquery.jjes" type="text/javascript")
+    script(src="mustache.js" type="text/javascript")
+    template#stop-button
+      button(type="button").my-bt.icon-stop PAUSE
+      button(type="button").my-bt.icon-stop STOP
+    template#run-button
+      button(type="button").my-bt.icon-play {{runtime}}
+    template#zone
+      +zone-card("{{name}}", "zone_{{id}}")
+    nav.navbar.fixed-top.bg-primary.navbar-dark
+      .flex-row
+        a.navbar-brand(href="#") #{title}
+    #main.container-fluid
+      .main.pt-5.mt-3
+        .row#zone_container
+
+    script(src="kitten.js" type="text/javascript")
+
+    script(type="text/javascript").
+      var ctrl = new Controller($('#zone_container'))
+      ctrl.load()
+  // ctrl.process_zones({"status":"OK","zones":[{"id":"back1","name":"Back Yard Garden","version":1,"is_on":true,"is_running":false,"next_run":"2020-07-28T07:00:00-07:00","started_at":"0001-01-01T00:00:00Z","last_run":"2020-07-27T18:01:20.87658762-07:00","runtime":67197616093,"hw_id":"gpio7","lane":"single","schedule":[{"index":1,"for":420000000000,"days":[1,2,3,4,5,6,0],"h":7,"m":0,"tz":"Local"}]},{"id":"roses","name":"Front Yard Roses","version":1,"is_on":true,"is_running":false,"next_run":"2020-07-28T07:00:00-07:00","started_at":"0001-01-01T00:00:00Z","last_run":"2020-07-27T18:02:28.074203631-07:00","runtime":39111805953,"hw_id":"gpio0","lane":"single","schedule":[{"index":1,"for":420000000000,"days":[1,2,3,4,5,6,0],"h":7,"m":0,"tz":"Local"}]}]})
+

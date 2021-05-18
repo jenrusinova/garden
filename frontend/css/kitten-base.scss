@@ -1,0 +1,60 @@
+/*!
+ * Bootstrap Theme
+ */
+
+$font-family-sans-serif : Roboto, "Helvetica Neue", -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+
+$theme-colors: (
+  "primary": #313a46,
+//  "primary": #98a6ad
+);
+
+$card-columns-count : 12;
+
+$body-color : #434f50;
+$primary-text : #e0e0e6;
+$body-bg : #f3f6fa;
+
+@import "../node_modules/bootstrap/scss/bootstrap";
+
+.card {
+  box-shadow: $box-shadow-sm
+}
+
+.my-bt {
+  @extend .btn;
+  @extend .btn-sm;
+  background-color: transparent;
+  color: $primary-text;
+}
+
+.my-bt:hover {
+  background-color: #1b1e21;
+  color: $primary-text;
+}
+
+.icon-play::before {
+  display: inline-block;
+  content: "";
+  width: 16px;
+  height: 16px;
+  vertical-align: text-top;
+  margin-right: 0.2em;
+  color: $primary-text;
+  background-image: url("data:image/svg+xml,<svg height='1em' width='1em' viewBox='0 0 16 16' fill='%23e0e0e0' xmlns='http://www.w3.org/2000/svg'><path fill-rule='evenodd' d='M10.804 8L5 4.633v6.734L10.804 8zm.792-.696a.802.802 0 0 1 0 1.392l-6.363 3.692C4.713 12.69 4 12.345 4 11.692V4.308c0-.653.713-.998 1.233-.696l6.363 3.692z' clip-rule='evenodd'/></svg>");
+  background-repeat: no-repeat;
+  background-size: 1rem 1rem;
+}
+
+.big-value {
+  font-size: xx-large;
+  font-weight: bold;
+  text-align: center;
+  margin-bottom: 0px;
+}
+
+.tip {
+  @extend .text-muted;
+  text-align: center;
+  font-size: small;
+}
