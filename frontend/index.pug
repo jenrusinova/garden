@@ -35,18 +35,23 @@ html(lang='en')
     link(rel="stylesheet" href="kitten-base.css")
     meta(name="viewport" content="width=device-width, initial-scale=1")
   body
-    script(src="jquery.jjes" type="text/javascript")
+    script(src="jquery.js" type="text/javascript")
     script(src="mustache.js" type="text/javascript")
+
     template#stop-button
       button(type="button").my-bt.icon-stop PAUSE
       button(type="button").my-bt.icon-stop STOP
+
     template#run-button
       button(type="button").my-bt.icon-play {{runtime}}
+
     template#zone
       +zone-card("{{name}}", "zone_{{id}}")
+
     nav.navbar.fixed-top.bg-primary.navbar-dark
       .flex-row
         a.navbar-brand(href="#") #{title}
+
     #main.container-fluid
       .main.pt-5.mt-3
         .row#zone_container
@@ -56,5 +61,6 @@ html(lang='en')
     script(type="text/javascript").
       var ctrl = new Controller($('#zone_container'))
       ctrl.load()
+
   // ctrl.process_zones({"status":"OK","zones":[{"id":"back1","name":"Back Yard Garden","version":1,"is_on":true,"is_running":false,"next_run":"2020-07-28T07:00:00-07:00","started_at":"0001-01-01T00:00:00Z","last_run":"2020-07-27T18:01:20.87658762-07:00","runtime":67197616093,"hw_id":"gpio7","lane":"single","schedule":[{"index":1,"for":420000000000,"days":[1,2,3,4,5,6,0],"h":7,"m":0,"tz":"Local"}]},{"id":"roses","name":"Front Yard Roses","version":1,"is_on":true,"is_running":false,"next_run":"2020-07-28T07:00:00-07:00","started_at":"0001-01-01T00:00:00Z","last_run":"2020-07-27T18:02:28.074203631-07:00","runtime":39111805953,"hw_id":"gpio0","lane":"single","schedule":[{"index":1,"for":420000000000,"days":[1,2,3,4,5,6,0],"h":7,"m":0,"tz":"Local"}]}]})
 

@@ -11,6 +11,7 @@ import (
 )
 
 
+var defaultServerAddr = "0.0.0.0:8089"
 
 
 type ZoneAction struct {
@@ -35,10 +36,12 @@ type GardenAPI struct {
 
 func NewGardenAPI(controller *GardenController, webData web.Directory) *GardenAPI {
 	result := &GardenAPI{
-		HttpService: web.NewHttpServer("0.0.0.0:8089"),
+		HttpService: web.NewHttpServer(defaultServerAddr),
 		webData:     webData,
 		controller:  controller,
 	}
+
+	log.Printf("Listening at %s", defaultServerAddr)
 
 	result.RegisterDirectory(webData, "/")
 	result.RegisterStartupHandler(result.PrepareHttp)

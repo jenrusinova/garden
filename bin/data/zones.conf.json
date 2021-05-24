@@ -1,0 +1,7 @@
+{
+ "zones": [
+  { "id": "roses", "name": "Frontyard Roses", "version": 1, "is_on" : true, "hw_id": "gpio0", "lane": "0", "schedule": [] },
+  { "id": "lawn", "name": "Frontyard Lawn", "version": 1, "is_on" : true, "hw_id": "gpio1", "lane": "0", "schedule": [] },
+  { "id": "Backyard", "name": "Backyard Lawn", "version": 1, "is_on" : true, "hw_id": "gpio2", "lane": "1", "schedule": [] }
+ ]
+}
