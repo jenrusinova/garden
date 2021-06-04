@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"geck/controller"
 	"geck/driver"
 	"geck/model"
@@ -22,10 +23,21 @@ func main() {
 		log.Printf("error : %s", err.Error())
 	}
 
+	var dataDirectory string
+	var webDataFile string
+
+	flag.StringVar(&dataDirectory, "data", "./data",
+		"Directory with configuration and run files")
+
+	flag.StringVar(&webDataFile, "web-data", "./garden-webdata.tar.gz",
+		"Tar file with web data")
+
+	flag.Parse()
+
 	services := registry.NewServiceRegistry()
-	storage := model.NewDirectoryStorageDriver("./data")
+	storage := model.NewDirectoryStorageDriver(dataDirectory)
 	gc := controller.NewGardenController(ioDriver, storage)
-	webData := web.NewTarMap("./garden-webdata.tar.gz", "/var/tmp/geck/web")
+	webData := web.NewTarMap(webDataFile, "/var/tmp/geck/web")
 	api := controller.NewGardenAPI(gc, webData)
 
 	services.AddService("storage", storage)

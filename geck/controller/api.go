@@ -4,15 +4,15 @@ import (
 	"encoding/json"
 	"geck/model"
 	"geck/web"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"regexp"
+	"strconv"
 	"time"
 )
 
-
 var defaultServerAddr = "0.0.0.0:8089"
-
 
 type ZoneAction struct {
 	ZoneId   string `json:"zone_id"`
@@ -20,7 +20,6 @@ type ZoneAction struct {
 	Action   string `json:"action"`
 	Duration time.Duration `json:"for"`
 }
-
 
 type Response struct {
 	Status string            `json:"status"`
@@ -74,7 +73,32 @@ func (api * GardenAPI) HandleZoneInfo(writer http.ResponseWriter, req *http.Requ
 	}
 }
 
-func (api * GardenAPI) HandleZoneUpdate(writer http.ResponseWriter, req *http.Request) {
+func (api * GardenAPI) HandleZoneUpdate(context APIContext) error {
+	var body = context.Request.Body
+	defer body.Close()
+
+	var zoneInfo model.ZoneInfoStatic
+	bytes, err := ioutil.ReadAll(body)
+	if err != nil {
+		return err
+	}
+
+	var fields map[string]interface{}
+	err = json.Unmarshal(bytes, &zoneInfo)
+	if err != nil {
+		return err
+	}
+
+	// HACK: parallel unmarshal to map to check set fields set
+	//  FIXME: replace with proper deserialization
+	_ = json.Unmarshal(bytes, &fields)
+
+	err = api.controller.UpdateZone(&zoneInfo, fields["is_on"] != nil)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 type APIContext struct {
@@ -88,7 +112,7 @@ func WrapAPICall(
 	re * regexp.Regexp) func
 	(writer http.ResponseWriter, req *http.Request) {
 	return func(writer http.ResponseWriter, req *http.Request) {
-		log.Printf("Http request: %s, from : %s", req.URL.Path, req.RemoteAddr)
+		log.Printf("Http request: %s, from : %s", req.URL.String(), req.RemoteAddr)
 
 		err := handler(APIContext{
 			Writer:    writer,
@@ -116,7 +140,16 @@ func (api * GardenAPI) HandleZoneStop(context APIContext) error {
 func (api * GardenAPI) HandleZoneStart(context APIContext) error {
 	log.Printf("Http, start zone req: %s", context.PathParts[1])
 
-	if err := api.controller.StartZone(context.PathParts[1], 5 * time.Minute, true); err != nil {
+	tDur := 5
+	if tStr := context.Request.URL.Query().Get("time"); tStr != "" {
+		if timeParsed, err := strconv.Atoi(tStr); err == nil {
+			tDur = timeParsed
+		} else {
+			log.Printf("Unable to parse start duration time %s: %s", tStr, err.Error())
+		}
+	}
+
+	if err := api.controller.StartZone(context.PathParts[1], time.Duration(tDur) * time.Minute, true); err != nil {
 		return err
 	}
 
@@ -130,6 +163,11 @@ func (api * GardenAPI) PrepareHttp() error {
 		WrapAPICall(
 			api.HandleZoneStart,
 			regexp.MustCompile("/start/([a-zA-Z0-9\\-]+)")))
+
+	api.Mux().HandleFunc("/update/",
+		WrapAPICall(
+			api.HandleZoneUpdate,
+			regexp.MustCompile("/update/([a-zA-Z0-9\\-]+)")))
 
 	api.Mux().HandleFunc("/stop/",
 		WrapAPICall(

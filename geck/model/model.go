@@ -30,17 +30,20 @@ type ZoneInfoStatic struct {
 	HardwareId string `json:"hw_id"`
 	Lane       string `json:"lane"`
 
-	Schedule   []*ZoneScheduleSpec `json:"schedule"`
+	Schedule []*ZoneScheduleSpec `json:"schedule"`
 }
 
 /// A structure for a public representation of zone state
 type ZoneState struct {
 	IsRunning  bool `json:"is_running"`
 
+	// Zone is disabled due to error
+	Disabled   bool `json:"disabled"`
+
 	NextRun    *time.Time    `json:"next_run"`
 	StartedAt  time.Time     `json:"started_at"`
 	LastRun    time.Time     `json:"last_run"`
-	Runtime    time.Duration `json:"runtime"`
+	Runtime    time.Duration `json:"runtime"` // total zone run time
 }
 
 type ZoneInfo struct {

@@ -11,11 +11,11 @@ import (
 
 func TestNewDirectoryStorageDriver(t *testing.T) {
 	// TODO: replace with fs fixture
-	dir := "/tmp/sdfsdf"
+	dir := "/tmp/test-x"
 	os.MkdirAll(dir, 0777)
 
 	func() {
-		file, err := os.Open("/home/itaranov/go/src/geck/data/zones.conf.json")
+		file, err := os.Open("test-zones.conf.json")
 		if err != nil {
 			os.Stderr.WriteString(err.Error() + "\n")
 		}
@@ -48,24 +48,25 @@ func TestNewDirectoryStorageDriver(t *testing.T) {
 
 	list[0].Lane = "0"
 	list[1].Lane = "0"
+	list[0].ZoneInfoStatic.Name = "test1"
 
-	driver.doSaveZone(saveZoneContext{
+	err = driver.doSaveZone(saveZoneContext{
 		zone: &list[0].ZoneInfoStatic,
 	})
+	require.NoError(t, err)
 
 	list[0].ZoneState.Runtime = 5 * time.Second
-
-	driver.doUpdateZoneState(updateZoneStateContext{
+	err = driver.doUpdateZoneState(updateZoneStateContext{
 		zoneId: list[0].Id,
 		state:  &list[0].ZoneState,
 	})
+	require.NoError(t, err)
 
 	list, _ = driver.doLoadZones()
+	require.Equal(t, "test1", list[0].ZoneInfoStatic.Name)
 
-	driver.doSaveZone(saveZoneContext{
+	err = driver.doSaveZone(saveZoneContext{
 		zone: &list[0].ZoneInfoStatic,
 	})
-
-
-//	require.True(t, ok)
+	require.NoError(t, err)
 }

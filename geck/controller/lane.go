@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"container/list"
 	"geck/driver"
 	"geck/model"
 	"geck/schedule"
@@ -9,77 +8,97 @@ import (
 	"time"
 )
 
+type ZoneIdType string
+
 type ZoneRun struct {
 	StartTime time.Time
 	Duration  time.Duration
-	Zone      *Zone
+	ZoneId    ZoneIdType
 }
 
-// Zone
-type Zone struct {
+type ZoneRunData struct {
+	ZoneRun
+
+	// We always store the hardware pin of the running zone,
+	// to be able to stop it even if it's deleted
+	actor driver.WireActor
+}
+
+type ZoneRuntimeState struct {
+	Id      ZoneIdType
+
+	State   model.ZoneState
+	enabled bool
 	actor   driver.WireActor
 	weekSch schedule.WeeklySchedule
-	locHist *list.List
-
-	Schedule []schedule.Spec
-
-	Id   string
-	Name string
-	Lane *Lane
-
-	LastRun time.Time
-	AccTime time.Duration
-
-	version uint64
-	enabled bool
-}
-
-type ZoneRequest struct {
-	zone *Zone
-	cb   chan *model.ZoneInfo
 }
 
 // Lane
 type Lane struct {
-	zones []*Zone
-	Name  string
+	Name   string
+	zones  map[ZoneIdType]*ZoneRuntimeState
+	hwPins map[string]driver.WireActor
 
-	runningZone *ZoneRun
-	nextRun     *ZoneRun
-	controller  *GardenController
+	// currently running zone
+	runningZone *ZoneRunData
 
-	OobRunC  chan *ZoneRun
-	OobStopC chan *Zone
-	GetInfoC chan ZoneRequest
+	// cached next run, which we are waiting for
+	nextRun *ZoneRunData
+
+	OobStopC  chan ZoneIdType
+	ScheduleC chan *ZoneRun
+
+	// Channel to update the whole zone info
+	ResetC chan []*model.ZoneInfo
+
+	// callbacks for upper level
+	OnZoneFinish func(ZoneRun)
+	UpdateZoneState func(ZoneIdType, model.ZoneState)
+}
+
+func (lane *Lane) Shutdown() {
+	close(lane.ResetC)
 }
 
 func getDuration(data interface{}) time.Duration {
 	return data.(*model.ZoneScheduleSpec).Duration
 }
 
-func (zone * Zone) NextRun(t time.Time) *ZoneRun {
+func (lane *Lane) NextZoneRun(zone *ZoneRuntimeState, t time.Time) *ZoneRunData {
+	// We cannot just pass last run here as t because
+	// we want the next run to happen right after the current time
+
 	lt, rt := zone.weekSch.GetNearest(t)
 
 	if lt.Time.IsZero() || rt.Time.IsZero() {
 		return nil
 	}
 
-	if zone.LastRun.Before(lt.Time) {
-		return &ZoneRun{
-			StartTime: t,
-			Duration:  getDuration(lt.Data),
-			Zone:      zone,
-		}
-	} else {
-		return &ZoneRun{
+	result := &ZoneRunData{
+		ZoneRun: ZoneRun{
 			StartTime: rt.Time,
 			Duration:  getDuration(rt.Data),
-			Zone:      zone,
-		}
+			ZoneId:    zone.Id,
+		},
+		actor: zone.actor,
 	}
+
+	if zone.State.LastRun.Before(lt.Time) {
+		// We skipped one or more runs, so schedule one immediately
+		result.StartTime = t
+		result.Duration = getDuration(lt.Data)
+	}
+
+	if zone.State.NextRun == nil || !zone.State.NextRun.Equal(result.StartTime) {
+		tt := result.StartTime
+		zone.State.NextRun = &tt
+		lane.UpdateZoneState(zone.Id, zone.State)
+	}
+
+	return result
 }
 
-func (lane * Lane) nextActionIn(t time.Time) time.Duration {
+func (lane *Lane) nextActionIn(t time.Time) time.Duration {
 	// Next default check
 	timeout := time.Minute
 
@@ -101,11 +120,10 @@ func (lane * Lane) nextActionIn(t time.Time) time.Duration {
 		}
 	}
 
-
 	return timeout
 }
 
-func (lane * Lane) LaneRouting() {
+func (lane *Lane) LaneController() {
 	lane.setNext(time.Now())
 
 	for {
@@ -118,155 +136,128 @@ func (lane * Lane) LaneRouting() {
 
 		select {
 		case <-time.After(timeout):
-			lane.LaneTick(time.Now())
-
-		case x := <-lane.OobRunC:
+		case x := <-lane.ScheduleC:
 			lane.preempt(x, time.Now())
-
 		case zone := <-lane.OobStopC:
-			if zone.IsRunning() {
-				log.Printf("Stop zone request: %s", zone.Id)
+			if lane.runningZone != nil && zone == lane.runningZone.ZoneId {
+				log.Printf("Stop zone request: %s", zone)
 				lane.preempt(nil, time.Now())
 			} else {
-				log.Printf("Stop zone request ignored (not running): %s", zone.Id)
+				log.Printf("Stop zone request ignored (not running): %s", zone)
 			}
 
-		case req, ok := <-lane.GetInfoC:
-			if !ok {
+		case newZones, ok := <-lane.ResetC:
+			if !ok || newZones == nil {
+				lane.stopZone(time.Now())
 				return
 			}
 
-			req.cb <- req.zone.GetZoneInfo(time.Now())
+			lane.reset(newZones)
+		}
+
+		lane.LaneTick(time.Now())
+	}
+}
+
+func (lane *Lane) reset(zones []*model.ZoneInfo) {
+	lane.zones = make(map[ZoneIdType]*ZoneRuntimeState)
+
+	for _, zone := range zones {
+		zoneRun := makeZoneRunState(
+			lane.hwPins[zone.HardwareId],
+			zone)
+
+		lane.zones[zoneRun.Id] = zoneRun
+	}
+
+	lane.setNext(time.Now())
+
+	for id, zoneRun := range lane.zones {
+		// update state
+		wasInRunningState := zoneRun.State.IsRunning
+		zoneRun.State.IsRunning = zoneRun.actor.IsRunning()
+		zoneRun.State.Disabled = !zoneRun.enabled
+
+		if wasInRunningState != zoneRun.State.IsRunning {
+			lane.UpdateZoneState(id, zoneRun.State)
 		}
 	}
 }
 
-func NewZone(lane *Lane, actor driver.WireActor, id string) *Zone {
-	return &Zone{
-		actor:    actor,
-		weekSch:  schedule.WeeklySchedule{},
-		Schedule: make([]schedule.Spec, 0),
-		Id:       id,
-		Lane:     lane,
-		LastRun:  time.Now(),
-		locHist:  list.New(),
+func makeZoneRunState(actor driver.WireActor, zoneInfo *model.ZoneInfo) *ZoneRuntimeState {
+	return &ZoneRuntimeState{
+		Id:      ZoneIdType(zoneInfo.Id),
+		State:   zoneInfo.ZoneState, // copy
+
+		// We only rely on static state for now, so every
+		//  change will reset it && !zoneInfo.Disabled,
+		enabled: zoneInfo.IsEnabled,
+		actor:   actor,
+		weekSch: schedule.WeeklySchedule{},
 	}
 }
 
-func NewLane(controller *GardenController, name string) *Lane {
+func NewLane(gc *GardenController, name string) *Lane {
 	return &Lane{
-		zones : []*Zone{},
 		Name  : name,
+		hwPins : gc.actorById,
 
-		OobRunC:    make(chan *ZoneRun, 64),
-		OobStopC:   make(chan *Zone, 64),
-		GetInfoC:   make(chan ZoneRequest, 64),
-		controller: controller,
+		ScheduleC: make(chan *ZoneRun, 64),
+		OobStopC:  make(chan ZoneIdType, 64),
+		ResetC:    make(chan []*model.ZoneInfo, 64),
 
 		runningZone: nil,
 		nextRun:     nil,
-	}
-}
 
-func (zone * Zone) GetZoneInfo(t time.Time) *model.ZoneInfo {
-	running := zone.Lane.runningZone
-
-	zoneInfo := &model.ZoneInfo{
-		ZoneInfoStatic: model.ZoneInfoStatic{
-			Id:         zone.Id,
-			Name:       zone.Name,
-			Version:    zone.version,
-			HardwareId: zone.actor.GetID(),
-			Lane:       zone.Lane.Name,
-			IsEnabled:  zone.enabled,
-		},
-		ZoneState:      model.ZoneState{
-			IsRunning:  zone.IsRunning(),
-			LastRun: 	zone.LastRun,
-			Runtime:    zone.AccTime,
-		},
-	}
-
-	nextRun := zone.NextRun(t)
-
-	if nextRun != nil {
-		zoneInfo.NextRun = &nextRun.StartTime
-	}
-
-	if running != nil && zoneInfo.IsRunning {
-		zoneInfo.StartedAt = running.StartTime
-	}
-
-	zoneInfo.Schedule = make([]*model.ZoneScheduleSpec, len(zone.Schedule))
-
-	for i, spec := range zone.Schedule {
-		zoneInfo.Schedule[i] = &model.ZoneScheduleSpec{
-			Idx:        i + 1,
-			Duration:   getDuration(spec.Data),
-			DaysOfWeek: spec.DaysOfWeek,
-			Hours:      spec.Hours,
-			Minutes:    spec.Minutes,
-			AtTimeZone: spec.AtTimeZone,
-		}
-	}
-
-	return zoneInfo
-}
-
-
-// Stop
-func (zone *Zone) Stop() {
-	zone.Lane.OobStopC <- zone
-}
-
-// Start
-func (zone *Zone) Start(d time.Duration, t time.Time) {
-	zone.Lane.OobRunC <- &ZoneRun{
-		StartTime: t,
-		Duration:  d,
-		Zone:      zone,
+		OnZoneFinish: gc.ZoneFinish,
+		UpdateZoneState: gc.UpdateZoneState,
 	}
 }
 
 // internalStop
-func (zone *Zone) internalStop(startTime time.Time, t time.Time) {
-	zone.actor.Stop()
-
-	run := &ZoneRun{
-		StartTime: startTime,
-		Duration:  t.Sub(startTime),
-		Zone:      zone,
+func (lane *Lane) stopZone(stopTime time.Time) {
+	zone := lane.runningZone
+	if zone == nil {
+		return
 	}
 
-	zone.AccTime += run.Duration
+	zone.actor.Stop()
+	lane.runningZone = nil
+
+	run := zone.ZoneRun
+	run.Duration = stopTime.Sub(run.StartTime)
+
+	lane.OnZoneFinish(run)
+
+	zoneData, ok := lane.zones[run.ZoneId]
+
+	if !ok {
+		// Zone was removed from the lane
+		return
+	}
+
+	zoneData.State.Runtime += run.Duration
+	zoneData.State.IsRunning = false
 
 	log.Printf(
 		"Zone finished: zone %s, run for %.2f minutes",
-		zone.Id,
+		zone.ZoneId,
 		run.Duration.Minutes())
 
-	zone.locHist.PushFront(run)
-
-	gc := zone.Lane.controller
-	gc.historyC <- run
-
-	zoneInfo := zone.GetZoneInfo(t)
-	if err := gc.storage.UpdateZoneState(zoneInfo.Id, &zoneInfo.ZoneState); err != nil {
-		log.Printf("Zone save error %s: %s", zone.Id, err.Error())
-	}
+	lane.UpdateZoneState(run.ZoneId, zoneData.State)
 }
 
 // start the zone
-func (run *ZoneRun) start(t time.Time) bool {
-	zone := run.Zone
+func (lane *Lane) startZone(run *ZoneRunData, t time.Time) bool {
+	zone, ok := lane.zones[run.ZoneId]
 
-	if !zone.enabled {
+	if !ok || !zone.enabled {
 		return false
 	}
 
-	zone.LastRun = t
+	zone.State.LastRun = t
 	zone.actor.Start()
-	zone.Lane.runningZone = run
+	lane.runningZone = run
 
 	log.Printf("Starting: zone %s, at %s for %.2f minutes",
 		zone.Id,
@@ -274,73 +265,91 @@ func (run *ZoneRun) start(t time.Time) bool {
 		run.Duration.Minutes())
 
 	running := zone.actor.IsRunning()
+	zone.State.IsRunning = running
 
 	if !running {
 		log.Printf("Failed to start: zone %s, disabling", zone.Id)
 		zone.enabled = false
+		zone.State.Disabled = true
 	}
+
+	lane.UpdateZoneState(zone.Id, zone.State)
 
 	return running
-}
 
+}
 
 // Update update schedule
-func (zone *Zone) Update() {
-	for _, sch := range zone.Schedule {
-		err := sch.AddToSchedule(&zone.weekSch)
+func (zone *ZoneRuntimeState) UpdateSchedule(specs []model.ZoneScheduleSpec, defaultLocation string) {
+	zone.weekSch = schedule.WeeklySchedule{}
 
+	for _, sch := range specs {
+		spec := schedule.Spec{
+			DaysOfWeek: sch.DaysOfWeek,
+			Hours:      sch.Hours,
+			Minutes:    sch.Minutes,
+			AtTimeZone: sch.AtTimeZone,
+			Data:       &sch,
+		}
+
+		if spec.AtTimeZone == "" {
+			spec.AtTimeZone = defaultLocation
+		}
+
+		err := zone.weekSch.AddSpec(spec)
 		if err != nil {
-			log.Fatal(err)
+			log.Printf("Cannot build schedule from spec %+v : %s", spec, err.Error())
 		}
 	}
-
-	zone.version++
-}
-
-func (zone *Zone) IsRunning() bool {
-	return zone.Lane.runningZone != nil && zone.Lane.runningZone.Zone == zone
 }
 
 // preempt add a
-func (lane * Lane) preempt(run *ZoneRun, t time.Time) {
+func (lane *Lane) preempt(run *ZoneRun, t time.Time) {
 	active := lane.runningZone
 
 	if active != nil {
-		active.Zone.internalStop(active.StartTime, t)
-		lane.runningZone = nil
-		active.Duration = active.Duration - t.Sub(active.StartTime)
+		lane.stopZone(t)
+		// TODO: Maybe schedule leftovers of this run for later?
 	}
 
-	if run != nil {
-		run.StartTime = t
-		lane.nextRun = run
-	} else {
+	if run == nil {
 		lane.setNext(t)
+		return
 	}
 
-	lane.LaneTick(t)
+	run.StartTime = t
+	zone := lane.zones[run.ZoneId]
+
+	if zone != nil {
+		lane.nextRun = &ZoneRunData{
+			ZoneRun: *run,
+			actor:   zone.actor,
+		}
+	}
 }
 
 func (lane * Lane) setNext(t time.Time) {
 	lane.nextRun = lane.findNext(t)
 
-	if lane.nextRun != nil {
-		log.Printf("Next run: zone %s, at %s for %.2f minutes",
-			lane.nextRun.Zone.Id,
-			lane.nextRun.StartTime.Format(time.RFC3339),
-			lane.nextRun.Duration.Minutes())
+	if lane.nextRun == nil {
+		return
 	}
+
+	log.Printf("Next run: zone %s, at %s for %.2f minutes",
+		lane.nextRun.ZoneId,
+		lane.nextRun.StartTime.Format(time.RFC3339),
+		lane.nextRun.Duration.Minutes())
 }
 
-func (lane * Lane) findNext(t time.Time) *ZoneRun {
-	var min *ZoneRun = nil
+func (lane * Lane) findNext(t time.Time) *ZoneRunData {
+	var min *ZoneRunData = nil
 
 	for _, z := range lane.zones {
-		if !z.enabled || z.IsRunning() || z.weekSch.Len() == 0 {
+		if !z.enabled || z.State.IsRunning || z.weekSch.Len() == 0 {
 			continue
 		}
 
-		next := z.NextRun(t)
+		next := lane.NextZoneRun(z, t)
 
 		if next != nil && (min == nil || next.StartTime.Before(min.StartTime)) {
 			min = next
@@ -350,16 +359,16 @@ func (lane * Lane) findNext(t time.Time) *ZoneRun {
 	return min
 }
 
-func (lane * Lane) LaneTick(t time.Time) {
+func (lane * Lane) LaneTick(t time.Time) bool {
 	active := lane.runningZone
 
 	if active != nil {
 		if t.Sub(active.StartTime) < active.Duration {
 			// Lane is still running
-			return
+			return true
 		}
 
-		active.Zone.internalStop(active.StartTime, t)
+		lane.stopZone(t)
 	}
 
 	lane.runningZone = nil
@@ -369,17 +378,24 @@ func (lane * Lane) LaneTick(t time.Time) {
 	}
 
 	if lane.nextRun == nil {
-		return
+		// End lane, nothing to run
+		return false
 	}
 
 	/**
 	 * TODO : replace nextRun with heap, so that the
-	 * previous next run is not lost when we replace it
+	 *  previous next run is not lost when we replace it
 	 */
 	if !lane.nextRun.StartTime.After(t) {
 		next := lane.nextRun
 		next.StartTime = t
-		next.start(t)
+		lane.startZone(next, t)
 		lane.setNext(t)
 	}
+
+	return true
+}
+
+func (lane *Lane) ResetZones(zones []*model.ZoneInfo) {
+	lane.ResetC <- zones
 }

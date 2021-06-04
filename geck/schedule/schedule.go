@@ -45,19 +45,18 @@ func (w * WeeklySchedule) Swap(i, j int) {
 	w.times[i], w.times[j] = w.times[j], w.times[i]
 }
 
-func (w * WeeklySchedule) addSchedule(offsets []slot) {
+func (w *WeeklySchedule) addSchedule(offsets []slot) {
 	w.times = append(w.times, offsets...)
 	sort.Sort(w)
 }
 
-func (spec * Spec) AddToSchedule(schedule * WeeklySchedule) error {
+func (w *WeeklySchedule) AddSpec(spec Spec) error {
 	loc, err := time.LoadLocation(spec.AtTimeZone)
-
-	if schedule.loc != nil && schedule.loc != loc {
+	if w.loc != nil && w.loc != loc {
 		return fmt.Errorf("all timezones must be the same for one schedule")
 	}
 
-	schedule.loc = loc
+	w.loc = loc
 
 	if err != nil {
 		return err
@@ -80,12 +79,12 @@ func (spec * Spec) AddToSchedule(schedule * WeeklySchedule) error {
 		}
 	}
 
-	schedule.addSchedule(times)
+	w.addSchedule(times)
 
 	return nil
 }
 
-const week = time.Hour * 24 * 7;
+const week = time.Hour * 24 * 7
 
 // GetCurrentWeekStart returns the time truncated
 // to the beginning of the nearest Monday (to the left)
