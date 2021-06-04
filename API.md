@@ -9,7 +9,7 @@ curl http://localhost:8089/zone/
 
 The following APIs are not currently implemented from Web.
 
-Update the name of the zone:
+Update the name of a zone:
 ```
 curl http://localhost:8089/update/roses/ -H "Content-Type: application/json" -d '{"id" : "roses", "name" : "Front Roses"}'
 ```
