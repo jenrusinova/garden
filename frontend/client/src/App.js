@@ -3,7 +3,8 @@ import './App.css';
 import React from 'react';
 import ReactDOM from 'react-dom';
 import $ from 'jquery';
-import logo from './images/grow_dammit.jpg'
+import logo from './images/grow_dammit.jpg';
+import ZoneList from './ZoneList.js';
 
 class App extends React.Component {
   constructor(props){
@@ -41,6 +42,7 @@ class App extends React.Component {
 
   render() {
     return (
+      <div className='main'>
       <div className="logo">
       <img src={logo} width="25%" height="25%" alt="logo"/>
          <div className = 'zone-button'>
@@ -48,9 +50,12 @@ class App extends React.Component {
         Load zones
          </button>
          </div>
-         </div>
+          </div>
+          <div className='zone-list'>
+            <ZoneList />
+          </div>
+          </div>
     );
-
 
   }
 }
