@@ -3,6 +3,7 @@ import './App.css';
 import React from 'react';
 import ReactDOM from 'react-dom';
 import $ from 'jquery';
+import logo from './images/grow_dammit.jpg'
 
 class App extends React.Component {
 
@@ -20,7 +21,13 @@ class App extends React.Component {
   }
 
   render() {
-    return <h1>Loading...</h1>;
+    return (
+      <div className="logo">
+      <img src={logo} width="25%" height="25%" alt="logo"/>
+         </div>
+    );
+
+
   }
 }
 
