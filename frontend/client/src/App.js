@@ -5,6 +5,7 @@ import ReactDOM from 'react-dom';
 import $ from 'jquery';
 import logo from './images/grow_dammit.jpg';
 import ZoneList from './ZoneList.js';
+import ZoneListEntry from './ZoneListEntry.js';
 
 class App extends React.Component {
   constructor(props){
@@ -52,7 +53,7 @@ class App extends React.Component {
          </div>
           </div>
           <div className='zone-list'>
-            <ZoneList />
+            <ZoneList zones = {this.state.zones}/>
           </div>
           </div>
     );

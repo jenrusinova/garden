@@ -1,8 +1,11 @@
+import ZoneListEntry from './ZoneListEntry.js';
 
-
-var ZoneList = () => (
+var ZoneList = (props) => (
 <div className='zone-list'>
-  Zones
+ {props.zones.map((zone) =>
+   <ZoneListEntry zone = {zone} />)
+
+ }
 </div>
 
 )
