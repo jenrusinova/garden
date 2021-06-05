@@ -19,7 +19,9 @@ class App extends React.Component {
   }
 
   handleZoneLoader(){
-  alert('Zone loaded');
+  this.setState({
+    isZoneLoaded:true
+  })
   }
 
 
