@@ -2,16 +2,25 @@
 import './App.css';
 import React from 'react';
 import ReactDOM from 'react-dom';
+import $ from 'jquery';
 
 class App extends React.Component {
 
 
   componentDidMount(){
-    console.log('mounted');
+    $.ajax({
+      url: "/zone",
+      type: 'GET',
+      dataType: 'json', // added data type
+      success: function(res) {
+          console.log(res);
+
+      }
+  });
   }
 
   render() {
-    return <h1>This is working</h1>;
+    return <h1>Loading...</h1>;
   }
 }
 
