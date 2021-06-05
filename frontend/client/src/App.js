@@ -16,6 +16,7 @@ class App extends React.Component {
       zones:[]
     }
     this.handleZoneLoader = this.handleZoneLoader.bind(this);
+    this.handleActiveZone = this.handleActiveZone.bind(this);
   }
 
   handleZoneLoader(){
@@ -23,6 +24,20 @@ class App extends React.Component {
     isZoneLoaded:!this.state.isZoneLoaded
   })
   }
+
+  handleActiveZone(zone){
+    let zones = this.state.zones;
+    let zoneId = zone.id;
+    for (let i = 0; i < zones.length; i++){
+      if(zones[i].id === zoneId){
+        console.log('Clicked on', zones[i].id );
+        zones[i].is_on = !zones[i].is_on;
+        console.log(this.state.zones);
+      }
+    }
+  }
+
+
 
 
   componentDidMount = () =>{
@@ -45,7 +60,9 @@ class App extends React.Component {
 
   renderView(){
     if(this.state.isZoneLoaded){
-      return  <ZoneList zones = {this.state.zones}/>
+      return  <ZoneList zones = {this.state.zones}
+               handleClick = {this.handleActiveZone}
+      />
     }
   }
 

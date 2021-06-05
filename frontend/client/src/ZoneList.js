@@ -1,9 +1,10 @@
 import ZoneListEntry from './ZoneListEntry.js';
 
-var ZoneList = (props) => (
+var ZoneList = ({zones, handleClick}) => (
 <div className='zone-list'>
- {props.zones.map((zone) =>
-   <ZoneListEntry zone = {zone} />)
+ {zones.map((zone) =>
+   <ZoneListEntry zone = {zone}
+   handleClick = {handleClick} />)
 
  }
 </div>
