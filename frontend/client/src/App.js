@@ -43,6 +43,12 @@ class App extends React.Component {
   });
   }
 
+  renderView(){
+    if(this.state.isZoneLoaded){
+      return  <ZoneList zones = {this.state.zones}/>
+    }
+  }
+
   render() {
     return (
       <div className='main'>
@@ -55,7 +61,7 @@ class App extends React.Component {
          </div>
           </div>
           <div className='zone-list'>
-            <ZoneList zones = {this.state.zones}/>
+           {this.renderView()}
           </div>
           </div>
     );
