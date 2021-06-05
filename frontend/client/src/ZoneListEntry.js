@@ -11,7 +11,7 @@ var ZoneListEntry = ({zone}) => {
      {zoneName}
     </div></h3>
     <div className = 'zone-list-entry-working'>
-      Active: {isWorking}
+      Active: <button>{isWorking}</button>
     </div>
     <div className = 'zone-list-entry-runtime'>
       Time:{runTime}
