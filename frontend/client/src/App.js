@@ -20,7 +20,7 @@ class App extends React.Component {
 
   handleZoneLoader(){
   this.setState({
-    isZoneLoaded:true
+    isZoneLoaded:!this.state.isZoneLoaded
   })
   }
 
