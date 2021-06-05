@@ -9,7 +9,9 @@ class App extends React.Component {
   constructor(props){
     super(props);
     this.state = {
-      isZoneLoaded:false
+      isZoneLoaded:false,
+      status: true,
+      zones:[]
     }
     this.handleZoneLoader = this.handleZoneLoader.bind(this);
   }
@@ -19,14 +21,20 @@ class App extends React.Component {
   }
 
 
-  componentDidMount(){
+  componentDidMount = () =>{
     $.ajax({
       url: "/zone",
       type: 'GET',
-      dataType: 'json', // added data type
-      success: function(res) {
-          console.log(res);
-
+      dataType: 'json',
+      success: function(data){
+        console.log('sent GET successfully');
+        this.setState({
+          zones: data.zones
+        })
+        console.log(this.state);
+      }.bind(this),
+      error: function(err){
+        console.log('error sending GET request', err);
       }
   });
   }
