@@ -3,7 +3,7 @@ import './App.css';
 import React from 'react';
 import ReactDOM from 'react-dom';
 import $ from 'jquery';
-import logo from './images/grow_dammit.jpg';
+import logo from './images/gardenpic.jpg';
 import ZoneList from './ZoneList.js';
 import ZoneListEntry from './ZoneListEntry.js';
 
@@ -33,7 +33,6 @@ class App extends React.Component {
       if(zones[i].id === zoneId){
         console.log('Clicked on', zones[i].id );
         zones[i].is_on = !zones[i].is_on;
-        //console.log(this.state.zones);
         objectToSend['id'] = zones[i].id;
         objectToSend['is_on'] = zones[i].is_on;
       }
@@ -43,7 +42,6 @@ class App extends React.Component {
     $.ajax({
       url: "/update/roses",
       type: 'POST',
-      //dataType: 'json',
       contentType: 'application/json',
       data:JSON.stringify(objectToSend),
       success: function(data){
@@ -80,6 +78,8 @@ class App extends React.Component {
   });
   }
 
+
+
   renderView(){
     if(this.state.isZoneLoaded){
       return  <ZoneList zones = {this.state.zones}
@@ -93,16 +93,18 @@ class App extends React.Component {
       <div className='main'>
       <div className="logo">
       <img src={logo} width="25%" height="25%" alt="logo"/>
+      </div>
          <div className = 'zone-button'>
-         <button onClick = {this.handleZoneLoader}>
+         <button id="load-button" onClick = {this.handleZoneLoader}>
         Load zones
          </button>
          </div>
-          </div>
+
           <div className='zone-list'>
            {this.renderView()}
           </div>
           </div>
+
     );
 
   }
