@@ -17,12 +17,17 @@ class App extends React.Component {
     }
     this.handleZoneLoader = this.handleZoneLoader.bind(this);
     this.handleActiveZone = this.handleActiveZone.bind(this);
+    this.handleTitleClick = this.handleTitleClick.bind(this);
   }
 
   handleZoneLoader(){
   this.setState({
     isZoneLoaded:!this.state.isZoneLoaded
   })
+  }
+
+  handleTitleClick(zone){
+    console.log(zone.name, ' was clicked');
   }
 
   handleActiveZone(zone){
@@ -84,6 +89,7 @@ class App extends React.Component {
     if(this.state.isZoneLoaded){
       return  <ZoneList zones = {this.state.zones}
                handleClick = {this.handleActiveZone}
+               handleTitleClick = {this.handleTitleClick}
       />
     }
   }
