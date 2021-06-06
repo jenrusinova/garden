@@ -28,13 +28,35 @@ class App extends React.Component {
   handleActiveZone(zone){
     let zones = this.state.zones;
     let zoneId = zone.id;
+    var objectToSend = {};
     for (let i = 0; i < zones.length; i++){
       if(zones[i].id === zoneId){
         console.log('Clicked on', zones[i].id );
         zones[i].is_on = !zones[i].is_on;
-        console.log(this.state.zones);
+        //console.log(this.state.zones);
+        objectToSend['id'] = zones[i].id;
+        objectToSend['is_on'] = zones[i].is_on;
       }
     }
+  console.log(objectToSend);
+
+    $.ajax({
+      url: "/update/roses",
+      type: 'POST',
+      //dataType: 'json',
+      contentType: 'application/json',
+      data:JSON.stringify(objectToSend),
+      success: function(data){
+        console.log('sent POST successfully');
+        this.setState({
+          zones: this.state.zones
+        })
+        console.log(this.state);
+      }.bind(this),
+      error: function(err){
+        console.log('error sending POST request', err);
+      }
+  });
   }
 
 
