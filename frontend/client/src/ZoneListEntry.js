@@ -20,8 +20,9 @@ var ZoneListEntry = ({zone, handleClick, handleTitleClick}) => {
      </button>
     </div>
     <div className = 'zone-list-entry-runtime'>
-      Time:{runTime}
+      Time:{runTime} min
     </div>
+    <div className ='choose-time'>Choose new time:<button id='min-5'>5 min</button><button id='min-10'>10 min</button><button id='min-15'>15 min</button></div>
     </h2>
     </div>
   )
