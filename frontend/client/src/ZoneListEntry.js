@@ -5,6 +5,9 @@ var ZoneListEntry = ({zone, handleClick, handleTitleClick}) => {
   var zoneName = zone.name;
   var isWorking = zone.is_on.toString();
   var runTime = zone.runtime;
+
+
+
   return (
     <div className ='zone-list-entry'>
     <h1><div className = 'zone-list-entry-name'

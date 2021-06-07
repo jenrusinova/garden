@@ -28,6 +28,37 @@ class App extends React.Component {
 
   handleTitleClick(zone){
     console.log(zone.name, ' was clicked');
+    let zoneId = zone.id;
+    let zones = this.state.zones;
+    let objectToSend = {};
+    const enteredZoneName = prompt('Please enter new zone name');
+    for (let i = 0; i < zones.length; i++){
+      console.log('inside for loop');
+      if (zoneId === zones[i].id){
+        zones[i].name = enteredZoneName;
+      }
+    }
+    objectToSend['id'] = zone.id;
+    objectToSend['name'] = zone.name;
+    $.ajax({
+      url: "/update/roses",
+      type: 'POST',
+      contentType: 'application/json',
+      data:JSON.stringify(objectToSend),
+      success: function(data){
+        console.log('sent POST successfully');
+        this.setState({
+          zones: this.state.zones
+        })
+        console.log(this.state);
+      }.bind(this),
+      error: function(err){
+        console.log('error sending POST request', err);
+      }
+  });
+
+
+
   }
 
   handleActiveZone(zone){
