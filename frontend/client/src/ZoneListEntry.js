@@ -8,9 +8,10 @@ var ZoneListEntry = ({zone, handleClick, handleTitleClick}) => {
   return (
     <div className ='zone-list-entry'>
     <h1><div className = 'zone-list-entry-name'
-    onClick={()=>handleTitleClick(zone)}>
+   >
      {zoneName}
-    </div></h1>
+    </div></h1><h5><div className ='title-edit'  onClick={()=>handleTitleClick(zone)
+    }>Edit title</div></h5>
     <h2><div className = 'zone-list-entry-working'  onClick={()=> (handleClick(zone))}>
       Active: <button>{isWorking}
      </button>
