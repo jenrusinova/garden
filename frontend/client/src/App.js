@@ -18,12 +18,51 @@ class App extends React.Component {
     this.handleZoneLoader = this.handleZoneLoader.bind(this);
     this.handleActiveZone = this.handleActiveZone.bind(this);
     this.handleTitleClick = this.handleTitleClick.bind(this);
+    this.handleRuntimeButtonCLick = this.handleRuntimeButtonCLick.bind(this);
   }
 
   handleZoneLoader(){
   this.setState({
     isZoneLoaded:!this.state.isZoneLoaded
   })
+  }
+  handleRuntimeButtonCLick(buttonId, zone){
+    let zones = this.state.zones;
+    let objectToSend = {};
+    console.log('button ' + buttonId + ' was clicked');
+    let time = Number(buttonId);
+    for (let i = 0; i < zones.length; i++ ){
+      if(zone.name === zones[i].name){
+        zones[i].runtime = time;
+      }
+    }
+    console.log(this.state.zones);
+    objectToSend['id'] = zone.id;
+    objectToSend['runtime'] = zone.runtime;
+    console.log(objectToSend);
+    $.ajax({
+      url: "http://localhost:8089/start/" + zone.id + "?time=" + time,
+      type: 'GET',
+      //contentType: 'application/json',
+      //data:JSON.stringify(objectToSend),
+      success: function(){
+        console.log('sent POST successfully');
+        this.setState({
+          zones: this.state.zones
+        })
+        console.log(this.state);
+      }.bind(this),
+      error: function(err){
+        console.log('error sending POST request', err);
+        console.log("http://localhost:8089/start/" + zone.id + "?time=" + time,);
+      }
+  });
+
+
+
+      //url:
+
+
   }
 
   handleTitleClick(zone){
@@ -121,6 +160,7 @@ class App extends React.Component {
       return  <ZoneList zones = {this.state.zones}
                handleClick = {this.handleActiveZone}
                handleTitleClick = {this.handleTitleClick}
+               handleRuntimeButtonCLick = {this.handleRuntimeButtonCLick}
       />
     }
   }
